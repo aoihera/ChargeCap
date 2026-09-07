@@ -1,23 +1,16 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
-.vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-files
-*.bclicense
-*.flf
-#Test results file
-TestResults.xml
+build/
+out/
+dist/
+*.zip
+*.elf
+*.nso
+*.nsp
+*.npdm
+*.nacp
+*.ovl
+*.map
+
+# vendored dependency: keep the tree, ignore the snapshot unless you commit it
+# (delete these two lines if you want to commit the vendored copy)
+overlay/lib/libultrahand/*
+!overlay/lib/libultrahand/README.md

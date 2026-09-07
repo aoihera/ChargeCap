@@ -8,7 +8,7 @@ Useful if you keep your Switch docked or plugged in for long periods and want to
 
 ## Features
 
-- **Standalone & Minimal footprint**: Contains only what is necessary to limit charging (single-thread event loop with on-demand raw FS access). Uses just ~60-70 KB resident memory.
+- **Standalone & Minimal footprint**: Contains only what is necessary to limit charging (single-thread event loop with on-demand raw FS access). Uses just ~60 KB resident memory.
 - **Minimal dependencies**: Only requires Tesla menu or Ultrahand for the overlay. The overlay provides convenient UI but is optional, the sysmodule works independently with just a config file. The sysmodule doesn't require anything beyond [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
 
 ---

@@ -1,0 +1,37 @@
+MIT License
+
+Copyright (c) 2026 charge-limit-NX contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+NOTE ON DERIVED AND LINKED CODE
+
+The MIT terms above cover the original code in this repository. Parts of this
+project are derived from or link against GPLv2 works, and those parts keep
+their original licence:
+
+  * The battery charge-limit mechanism is lifted from Switch-OC-Suite (GPLv2),
+    by way of Horizon-OC (GPLv2).
+  * The IPC server is the sys-clk "Beer-Ware Licence" file, notice retained.
+  * The overlay links against libultrahand (GPLv2).
+
+In practice this means a distributed *binary* of charge-limit-NX is effectively
+GPLv2. See THIRD-PARTY-NOTICES.md for the full picture.

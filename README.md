@@ -21,7 +21,7 @@ Useful if you keep your Switch docked or plugged in for long periods and want to
 This software communicates directly with Horizon OS's power management service (`psm`) and hardware PMIC registers. It is provided as-is without any warranty.
 
 ### ⚠️ 2. LLM / Vibe-Coded
-This project was vibe-coded with large language model assistance. The charging limit logic is based on proven implementations from Switch-OC-Suite, and the architecture around it is based on sys-clk, but the actual implementation and interface were written with LLM help.
+This project was vibe-coded with large language model assistance. The charging limit logic is based on proven implementations from [Switch-OC-Suite](https://github.com/hanai3Bi/Switch-OC-Suite), and the architecture around it is based on [sys-clk](https://github.com/retronx-team/sys-clk), but the actual implementation and interface were written with LLM help.
 
 ### ⚠️ 3. Battery Fuel Gauge Desync
 Keeping a lithium-ion battery capped at a fixed percentage over long periods means the fuel gauge rarely sees a full 100% top-off or full discharge calibration point. Over time, Horizon OS's battery percentage reading might drift or desync.

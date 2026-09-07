@@ -86,7 +86,7 @@ The output zip will be generated in the root directory.
 
 - Battery limit PSM implementation lifted from [Switch-OC-Suite](https://github.com/hanai3Bi/Switch-OC-Suite) by **hanai3Bi** and **KazushiMe** (GPLv2).
 - IPC server and background event loop architecture based on [sys-clk](https://github.com/retronx-team/sys-clk) by **p-sam**, **natinusala**, and **m4x** (GPLv2 / Beerware).
-- Overlay powered by [libultrahand](https://github.com/ppkantorski/libultrahand) by **ppkantorski** and [libtesla](https://github.com/WerWolv/libtesla) by **WerWolv**.
+- Overlay powered by [libultrahand](https://github.com/ppkantorski/libultrahand) by **ppkantorski**.
 - PSM reverse engineering research by **masagrator** ([ReverseNX-RT](https://github.com/masagrator/ReverseNX-RT)) and **CTCaer** ([Hekate](https://github.com/CTCaer/hekate)).
 
 ---

@@ -9,7 +9,7 @@ Useful if you keep your Switch docked or plugged in for long periods and want to
 ## Features
 
 - **Standalone & Minimal footprint**: Contains only what is necessary to limit charging (single-thread event loop with on-demand raw FS access). Uses just ~60 KB resident memory.
-- **Minimal dependencies**: Only requires Tesla menu or Ultrahand for the overlay. The overlay provides convenient UI but is optional, the sysmodule works independently with just a config file. The sysmodule doesn't require anything beyond [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
+- **Minimal dependencies**: Only requires [Tesla Menu](https://github.com/ppkantorski/Ultrahand-Overlay) or [Ultrahand](https://github.com/ppkantorski/Ultrahand-Overlay) for the overlay. The overlay provides convenient UI but is optional, the sysmodule works independently with just a config file. The sysmodule doesn't require anything beyond [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
 
 <img width="1280" height="720" alt="chargecapexample" src="https://github.com/user-attachments/assets/94669847-6491-4a5e-b8fc-37de06b2a6df" />
 

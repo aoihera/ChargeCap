@@ -28,10 +28,9 @@ The MIT terms above cover the original code in this repository. Parts of this
 project are derived from or link against GPLv2 works, and those parts keep
 their original licence:
 
-  * The battery charge-limit mechanism is lifted from Switch-OC-Suite (GPLv2),
-    by way of Horizon-OC (GPLv2).
+  * The battery charge-limit mechanism is lifted from Switch-OC-Suite (GPLv2).
   * The IPC server is the sys-clk "Beer-Ware Licence" file, notice retained.
   * The overlay links against libultrahand (GPLv2).
 
-In practice this means a distributed *binary* of charge-limit-NX is effectively
+In practice this means a distributed *binary* of ChargeCap is effectively
 GPLv2. See THIRD-PARTY-NOTICES.md for the full picture.

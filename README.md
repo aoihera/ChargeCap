@@ -28,7 +28,7 @@ Keeping a lithium-ion battery capped at a fixed percentage over long periods mea
 
 **How to recalibrate if this happens:**
 - Turn off the charge limit, charge the console to 100%, leave it on the charger for an extra hour, then play until the battery drops down to ~5–10%.
-- Alternatively, run CTCaer's [battery_desync_fix_nx](https://github.com/CTCaer/battery_desync_fix_nx) tool.
+- Alternatively, [battery_desync_fix_nx](https://github.com/CTCaer/battery_desync_fix_nx) tool.
 
 ---
 

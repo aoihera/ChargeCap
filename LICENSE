@@ -33,4 +33,4 @@ their original licence:
   * The overlay links against libultrahand (GPLv2).
 
 In practice this means a distributed *binary* of ChargeCap is effectively
-GPLv2. See THIRD-PARTY-NOTICES.md for the full picture.
+GPLv2.

@@ -42,6 +42,24 @@ namespace {
         std::snprintf(out, size, "%u%%", value);
     }
 
+    /* Raw gauge reading arrives as tenths of a percent (798 == 79.8%), with
+     * 0xFFFF meaning the sysmodule could not read it this tick. */
+    void FormatPermille(char *out, size_t size, u16 permille) {
+        if (permille == 0xFFFF)
+            std::snprintf(out, size, "-");
+        else
+            std::snprintf(out, size, "%u.%u%%", permille / 10u, permille % 10u);
+    }
+
+    /* Raw cell voltage in millivolts; 0xFFFF means the I2C read was
+     * unavailable (e.g. the sysmodule lacks i2c service access). */
+    void FormatMillivolts(char *out, size_t size, u16 mv) {
+        if (mv == 0xFFFF)
+            std::snprintf(out, size, "-");
+        else
+            std::snprintf(out, size, "%u.%03u V", mv / 1000u, mv % 1000u);
+    }
+
 }
 
 class ChargeCapGui : public tsl::Gui {
@@ -128,6 +146,14 @@ public:
         this->m_batteryItem = new tsl::elm::ListItem("Battery");
         this->m_batteryItem->setValue("...");
         list->addItem(this->m_batteryItem);
+
+        this->m_rawItem = new tsl::elm::ListItem("Raw gauge");
+        this->m_rawItem->setValue("...");
+        list->addItem(this->m_rawItem);
+
+        this->m_voltItem = new tsl::elm::ListItem("Cell voltage");
+        this->m_voltItem->setValue("...");
+        list->addItem(this->m_voltItem);
 
         this->m_chargeItem = new tsl::elm::ListItem("Charging");
         this->m_chargeItem->setValue("...");
@@ -232,6 +258,8 @@ private:
         if (!running) {
             this->m_moduleItem->setValue("Not running");
             this->m_batteryItem->setValue("-");
+            this->m_rawItem->setValue("-");
+            this->m_voltItem->setValue("-");
             this->m_chargeItem->setValue("-");
             return;
         }
@@ -240,6 +268,12 @@ private:
 
         FormatPercent(this->m_batteryText, sizeof(this->m_batteryText), status.charge_percent);
         this->m_batteryItem->setValue(this->m_batteryText);
+
+        FormatPermille(this->m_rawText, sizeof(this->m_rawText), status.raw_permille);
+        this->m_rawItem->setValue(this->m_rawText);
+
+        FormatMillivolts(this->m_voltText, sizeof(this->m_voltText), status.cell_mv);
+        this->m_voltItem->setValue(this->m_voltText);
 
         if (!status.charger_connected)
             this->m_chargeItem->setValue("Unplugged");
@@ -257,10 +291,14 @@ private:
     tsl::elm::ListItem       *m_limitItem   = nullptr;
     tsl::elm::ListItem       *m_moduleItem  = nullptr;
     tsl::elm::ListItem       *m_batteryItem = nullptr;
+    tsl::elm::ListItem       *m_rawItem     = nullptr;
+    tsl::elm::ListItem       *m_voltItem    = nullptr;
     tsl::elm::ListItem       *m_chargeItem  = nullptr;
 
     char m_limitText[8]    = {};
     char m_batteryText[8]  = {};
+    char m_rawText[8]      = {};
+    char m_voltText[12]    = {};
 
     u64  m_lastRefresh = 0;
     u64  m_dirtyAt     = 0;

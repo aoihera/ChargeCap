@@ -21,6 +21,7 @@
 #include <chargecap.h>
 #include "battery.h"
 #include "config.h"
+#include "fuelgauge.h"
 #include "ipc_server.h"
 
 /* Nothing in this module allocates after init; this only has to cover libnx's
@@ -113,6 +114,31 @@ static void ApplyChargeLimit(void) {
 
     g_status.charge_percent    = (u8)percent;
     g_status.charger_connected = plugged ? 1 : 0;
+
+    /* Diagnostic-only: the raw, un-rounded gauge reading the overlay surfaces so
+     * desync is visible. Never gates charging (that runs off `percent` above),
+     * so a failed read is non-fatal - flag it unavailable and carry on. */
+    double raw = 0.0;
+    if (R_SUCCEEDED(batteryInfoGetRawChargePercentage(&raw))) {
+        if (raw < 0.0)
+            raw = 0.0;
+        else if (raw > 100.0)
+            raw = 100.0;
+        g_status.raw_permille = (u16)(raw * 10.0 + 0.5);
+    } else {
+        g_status.raw_permille = 0xFFFF;
+    }
+
+    /* Same diagnostic contract: the raw cell voltage off the fuel gauge, or the
+     * unavailable sentinel if the I2C read fails (or was never initialised). */
+    u32 cell_mv = 0;
+    if (R_SUCCEEDED(fuelGaugeGetCellVoltageMv(&cell_mv))) {
+        if (cell_mv > 0xFFFE)
+            cell_mv = 0xFFFE;
+        g_status.cell_mv = (u16)cell_mv;
+    } else {
+        g_status.cell_mv = 0xFFFF;
+    }
 
     if (!plugged) {
         /* Nothing to gate. Drop the latch so the next plug-in starts clean,
@@ -216,6 +242,11 @@ int main(int argc, char **argv) {
 
     if (R_FAILED(batteryInfoInitialize()))
         return 1;
+
+    /* Diagnostic-only fuel-gauge access. A failure here just means the cell
+     * voltage reads as unavailable, so it must never abort startup or gate the
+     * limiter - deliberately unchecked. */
+    fuelGaugeInitialize();
 
     if (R_FAILED(ipcServerInit(&g_server, CHARGECAP_SERVICE_NAME, MAX_SESSIONS))) {
         batteryInfoExit();

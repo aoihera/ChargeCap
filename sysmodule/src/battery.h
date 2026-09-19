@@ -44,5 +44,6 @@ Result batteryInfoInitialize(void);
 void   batteryInfoExit(void);
 Result batteryInfoGetChargeInfo(BatteryChargeInfo *out);
 Result batteryInfoGetChargePercentage(u32 *out);
+Result batteryInfoGetRawChargePercentage(double *out);
 Result batteryInfoEnableCharging(void);
 Result batteryInfoDisableCharging(void);

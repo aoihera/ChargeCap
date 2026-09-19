@@ -63,6 +63,19 @@ Result batteryInfoGetChargePercentage(u32 *out) {
     return psmGetBatteryChargePercentage(out);
 }
 
+/* The un-rounded gauge reading (psm cmd 12). Diagnostic only: the charge limit
+ * runs off the rounded integer above; this exists so the overlay can surface
+ * the fractional value the integer is rounded from and make gauge desync
+ * visible. */
+Result batteryInfoGetRawChargePercentage(double *out) {
+    if (!g_init)
+        return MAKERESULT(Module_Libnx, LibnxError_NotInitialized);
+    if (!out)
+        return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+
+    return psmGetRawBatteryChargePercentage(out);
+}
+
 Result batteryInfoEnableCharging(void) {
     if (!g_init)
         return MAKERESULT(Module_Libnx, LibnxError_NotInitialized);

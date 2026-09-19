@@ -17,6 +17,7 @@
   },
   "service_access": [
     "psm",
+    "i2c",
     "fsp-srv",
     "set:sys"
   ],

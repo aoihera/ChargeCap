@@ -60,10 +60,21 @@ typedef struct {
 } ChargeCapConfig;
 
 typedef struct {
-    u8 charge_percent;
-    u8 charger_connected;
-    u8 charging;   /* psm charge-enable bit, as of this evaluation */
-    u8 limit_held; /* 1 when we are actively holding charging off */
+    u8  charge_percent;    /* psmGetBatteryChargePercentage, rounded 0..100 */
+    u8  charger_connected;
+    u8  charging;          /* psm charge-enable bit, as of this evaluation */
+    u8  limit_held;        /* 1 when we are actively holding charging off */
+    u16 raw_permille;      /* raw, un-rounded fuel-gauge reading in tenths of a
+                            * percent (798 == 79.8%). Sourced from the psm raw
+                            * charge cmd, which the integer charge_percent is
+                            * rounded from; a mismatch between the two, or a raw
+                            * value that disagrees with physical reality, is the
+                            * tell-tale of gauge desync. 0xFFFF == unavailable. */
+    u16 cell_mv;           /* raw MAX17050 cell voltage in millivolts, read
+                            * straight off the gauge over I2C. Cross-check for
+                            * raw_permille: a full-charge voltage (~4.3+ V) at a
+                            * low reported percent means the gauge has desynced.
+                            * 0xFFFF == unavailable (e.g. no I2C access). */
 } ChargeCapStatus;
 
 #ifdef __cplusplus

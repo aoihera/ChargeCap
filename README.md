@@ -12,6 +12,8 @@ Useful if you keep your Switch docked or plugged in for long periods and want to
 - **Minimal dependencies**: Requires [Tesla Menu](https://github.com/WerWolv/Tesla-Menu) or [Ultrahand](https://github.com/ppkantorski/Ultrahand-Overlay) for the overlay. The overlay provides a convenient UI but is optional; the sysmodule works independently with just a config file. Only requires [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
 - **Smart sleep alarm support (Optional)**: Can schedule hardware RTC wake alarms to periodically check charge levels while the console is asleep with the screen completely off, stopping charging when the set battery limit is reached.
 
+<img width="1280" height="720" alt="2026092020005000-57B4628D2267231D57E0FC1078C0596D" src="https://github.com/user-attachments/assets/e03fe2a4-4a90-4585-a544-93a0ca8bc48c" />
+
 ---
 
 ## Important Warnings & Disclaimers

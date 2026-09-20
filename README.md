@@ -8,10 +8,9 @@ Useful if you keep your Switch docked or plugged in for long periods and want to
 
 ## Features
 
-- **Standalone & Minimal footprint**: Contains only what is necessary to limit charging (single-thread event loop with on-demand raw FS access). Uses just ~60 KB resident memory.
-- **Minimal dependencies**: Only requires [Tesla Menu](https://github.com/WerWolv/Tesla-Menu) or [Ultrahand](https://github.com/ppkantorski/Ultrahand-Overlay) for the overlay. The overlay provides convenient UI but is optional, the sysmodule works independently with just a config file. The sysmodule doesn't require anything beyond [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
-
-<img width="1280" height="720" alt="chargecapexample" src="https://github.com/user-attachments/assets/94669847-6491-4a5e-b8fc-37de06b2a6df" />
+- **Standalone & small footprint**: Contains only what is necessary to limit charging. Uses just ~70 KB resident memory.
+- **Minimal dependencies**: Requires [Tesla Menu](https://github.com/WerWolv/Tesla-Menu) or [Ultrahand](https://github.com/ppkantorski/Ultrahand-Overlay) for the overlay. The overlay provides a convenient UI but is optional; the sysmodule works independently with just a config file. Only requires [Atmosphère](https://github.com/Atmosphere-NX/Atmosphere).
+- **Smart sleep alarm support (Optional)**: Can schedule hardware RTC wake alarms to periodically check charge levels while the console is asleep with the screen completely off, stopping charging when the set battery limit is reached.
 
 ---
 
@@ -28,53 +27,57 @@ Keeping a lithium-ion battery capped at a fixed percentage over long periods mea
 
 **How to recalibrate if this happens:**
 - Turn off the charge limit, charge the console to 100%, leave it on the charger for an extra hour, then play until the battery drops down to ~5–10%.
-- Alternatively, run [battery_desync_fix_nx](https://github.com/CTCaer/battery_desync_fix_nx) tool.
+- Alternatively, run the [battery_desync_fix_nx](https://github.com/CTCaer/battery_desync_fix_nx) tool.
 
 ---
 
-## Sleep Mode Behavior: Shallow vs Deep Sleep
+## Sleep Mode Behavior: "Limit in Sleep Mode" Toggle
 
-Horizon OS handles sleep in two distinct states:
+### 1. Limit in Sleep Mode: ON (Default)
+- When entering sleeping AND charging AND below the limit, ChargeCap sets a periodic "alarm" (wake timer).
+- System sleeps until the "alarm" goes off, then the system semi-wakes (half-awake / shallow sleep state, screen stays off) and ChargeCap checks the current battery charge, if still below the set limit, repeat.
+- Once the charge limit is reached: all alarms are cleared, charging is stopped and system is allowed to enter sleep again.
 
-- **Shallow Sleep (Screen Off / Active Background Tasks / eShop Downloads)**:
-  The CPU cores remain active at low frequencies. The sysmodule continues polling in the background every second and will immediately disable charging the moment the battery reaches your configured limit.
-
-- **Deep Sleep (SC7 Suspend-to-RAM / Extended Sleep)**:
-  The CPU cores are fully powered down and all background sysmodule execution is halted by Horizon OS:
-  - If the console enters sleep **after** hitting the limit, charging remains disabled in the PMIC hardware.
-  - If the console enters sleep **while still charging below the limit**, hardware charging continues. The instant the console wakes up, the sysmodule resumes execution and immediately cuts off charging if the limit has been reached.
+### 2. Limit in Sleep Mode: OFF
+- If the console enters sleep mode when at the limit, charging remains stopped as expected.
+- If the console enters deep sleep while charging below the limit, hardware charging continues silently. As soon as you wake the console manually, ChargeCap immediately detects the battery level and cuts charging if the limit has been reached/surpassed.
 
 ---
 
 ## Installation
 
-1. Grab the latest `ChargeCap.zip` from [Releases](../../releases) or build it from source.
+1. Grab the latest `ChargeCap.zip` from Releases or build it from source.
 2. Extract the zip to the root of your SD card:
    - `atmosphere/contents/42000000000000C0/`
    - `switch/.overlays/ChargeCap.ovl`
-3. **First-time install note:** If you transfer the files over MTP or FTP while the console is running, **reboot your Switch once** so Atmosphère's process manager launches the new sysmodule. The config file will be created automatically on first launch.
-4. Open the Tesla/Ultrahand overlay menu (normally `ZL + ZR + D-Pad Down` or `L + D-Pad Down + R3`), choose **ChargeCap**, set your desired percentage, and toggle it ON.
+3. **First-time install note:** If you transfer the files over MTP or FTP while the console is running, **reboot your Switch once** so Atmosphère launches the sysmodule.
+4. Open the Tesla/Ultrahand overlay menu (normally `ZL + ZR + D-Pad Down` or `L + D-Pad Down + R3`), select **ChargeCap**, adjust your limit, and toggle it ON.
 
 ---
 
 ## Configuration
 
-Settings are saved at `sdmc:/config/ChargeCap/config.ini`:
+Settings are saved at `sdmc:/config/chargecap/config.ini`:
 
 ```ini
 [ChargeCap]
-enabled = 0
-limit = 80
+; 0 = off (no limit is applied at all), 1 = on
+enabled=0
+; stop charging at this percentage (50-99)
+limit=80
+; 0 = off in sleep mode, 1 = periodic background wake to apply limit while asleep
+sleep_limit=1
 ```
 
-- `enabled`: `0` = disabled (normal charging to 100%), `1` = limit active
-- `limit`: target charge percentage (`50` to `99`)
+- `enabled`: `0` = disabled (normal charging to 100%), `1` = charge limit active. Default: `0` (OFF).
+- `limit`: target charge percentage (`50` to `99`). Default: `80`.
+- `sleep_limit`: `0` = charge limiting while awake only, `1` = periodic background wake with screen off to apply limit while asleep. Default: `1` (ON).
 
 ---
 
 ## Building from Source
 
-Requires [devkitPro](https://devkitpro.org) with `devkitA64`, `libnx`, and Switch portlibs (`switch-curl`, `switch-zlib`, `switch-mbedtls`). Uses libultrahand v2.4.3.
+Requires [devkitPro](https://devkitpro.org) with `devkitA64`, `libnx`, and Switch portlibs (`switch-curl`, `switch-zlib`, `switch-mbedtls`).
 
 ```bash
 make zip
@@ -86,7 +89,7 @@ The output zip will be generated in the root directory.
 
 ## Credits & Provenance
 
-- Battery limit PSM implementation lifted from [Switch-OC-Suite](https://github.com/hanai3Bi/Switch-OC-Suite) by **hanai3Bi** and **KazushiMe** (GPLv2).
+- Battery limit PSM implementation based on [Switch-OC-Suite](https://github.com/hanai3Bi/Switch-OC-Suite) by **hanai3Bi** and **KazushiMe** (GPLv2).
 - IPC server and background event loop architecture based on [sys-clk](https://github.com/retronx-team/sys-clk) by **p-sam**, **natinusala**, and **m4x** (GPLv2 / Beerware).
 - Overlay powered by [libultrahand](https://github.com/ppkantorski/libultrahand) by **ppkantorski**.
 - PSM reverse engineering research by **masagrator** ([ReverseNX-RT](https://github.com/masagrator/ReverseNX-RT)) and **CTCaer** ([Hekate](https://github.com/CTCaer/hekate)).
@@ -95,4 +98,4 @@ The output zip will be generated in the root directory.
 
 ## License
 
-GPLv2. See [LICENSE](LICENSE) for details.
+GPLv2 / MIT. See [LICENSE](LICENSE) for details.

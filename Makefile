@@ -17,7 +17,7 @@ CONTENTS   := $(DIST)/atmosphere/contents/$(TITLE_ID)
 all: sysmodule overlay
 
 libultrahand:
-	@./scripts/vendor-libultrahand.sh
+	@bash ./scripts/vendor-libultrahand.sh
 
 sysmodule:
 	@$(MAKE) --no-print-directory -C sysmodule

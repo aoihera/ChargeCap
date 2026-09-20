@@ -17,7 +17,7 @@ SOURCES  := src
 INCLUDES := src ../common/include
 EXEFS_SRC := exefs_src
 
-APP_VERSION := 1.0.0
+APP_VERSION := 1.1.0
 
 #---------------------------------------------------------------------------------
 # options for code generation

@@ -17,9 +17,11 @@
   },
   "service_access": [
     "psm",
-    "i2c",
     "fsp-srv",
-    "set:sys"
+    "set:sys",
+    "time:al",
+    "time:s",
+    "rtc"
   ],
   "service_host": [
     "chgcap"

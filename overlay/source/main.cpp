@@ -220,7 +220,7 @@ public:
             const tsl::Color text = renderer->a(tsl::bottomTextColor);
             renderer->drawString("Off applies no limit at all.", false, x + 20, y + 20, 15, text);
             renderer->drawString("Long sessions at a fixed cap can cause", false, x + 20, y + 42, 15, text);
-            renderer->drawString("battery desync. Discharge fully now and", false, x + 20, y + 62, 15, text);
+            renderer->drawString("battery desync. (Dis)charge fully now and", false, x + 20, y + 62, 15, text);
             renderer->drawString("then to keep the gauge honest.", false, x + 20, y + 82, 15, text);
         }), 110);
 

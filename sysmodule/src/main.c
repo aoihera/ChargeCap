@@ -25,7 +25,7 @@
 #include "ipc_server.h"
 #include "alarm_helper.h"
 
-#define INNER_HEAP_SIZE 0x4000
+#define INNER_HEAP_SIZE 0x800
 #define MAX_SESSIONS 2
 #define ERROR_BACKOFF_NS 100000000ULL
 #define CHARGECAP_DIAG_POLL_NS 5000000000ULL
@@ -174,16 +174,19 @@ static void ApplyChargeLimit(void) {
 
         /* If optional sleep-wake limit is enabled, schedule adaptive RTC wake alarm */
         if (g_cfg.sleep_limit_enabled) {
-            const u32 diff = g_cfg.limit - percent;
+            /* Enter rapid 10s polling when within 2% of limit to guarantee 0% overshoot.
+             * For coarse approach, aim to wake at (limit - 2) using a safe 40s/1% rate. */
+            const u32 coarse_target = (g_cfg.limit > 2) ? (g_cfg.limit - 2) : 0;
 
-            if (diff <= 2) {
-                /* When within 2% (2% or 1%), schedule 10s recurring alarm until exact limit is reached */
+            if (percent >= coarse_target) {
+                /* Within 2% of limit (e.g. 58% or 59% for limit 60%): 10s recurring checks */
                 alarmHelperSchedule(10);
                 g_status.alarm_active       = 1;
                 g_status.next_alarm_seconds = 10;
             } else {
-                /* Far approach: schedule alarm for X = (limit - percent) minutes */
-                const u32 delay_seconds = diff * 60;
+                /* Far approach: wake up when reaching (limit - 2), budgeting 40 seconds per 1% */
+                const u32 diff_to_coarse = coarse_target - percent;
+                const u32 delay_seconds  = diff_to_coarse * 40;
                 alarmHelperSchedule(delay_seconds);
 
                 u32 remaining = delay_seconds;

@@ -31,14 +31,14 @@ namespace settings {
         if (f) {
             char line[96];
             while (std::fgets(line, sizeof(line), f)) {
-                unsigned value = 0;
-                if (std::sscanf(line, " enabled = %u", &value) == 1)
+                int value = 0;
+                if (std::sscanf(line, " enabled = %d", &value) == 1)
                     cfg.enabled = value ? 1 : 0;
-                else if (std::sscanf(line, " sleep_limit = %u", &value) == 1 ||
-                         std::sscanf(line, " limit_in_sleep = %u", &value) == 1)
+                else if (std::sscanf(line, " sleep_limit = %d", &value) == 1 ||
+                         std::sscanf(line, " limit_in_sleep = %d", &value) == 1)
                     cfg.sleep_limit_enabled = value ? 1 : 0;
-                else if (std::sscanf(line, " limit = %u", &value) == 1)
-                    cfg.limit = static_cast<u8>(value);
+                else if (std::sscanf(line, " limit = %d", &value) == 1)
+                    cfg.limit = (value >= 0 && value <= 255) ? static_cast<u8>(value) : 0;
             }
             std::fclose(f);
         }

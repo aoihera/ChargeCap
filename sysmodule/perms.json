@@ -20,8 +20,7 @@
     "fsp-srv",
     "set:sys",
     "time:al",
-    "time:s",
-    "rtc"
+    "time:s"
   ],
   "service_host": [
     "chgcap"

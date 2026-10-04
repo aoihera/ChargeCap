@@ -18,7 +18,7 @@ INCLUDES := ../common/include
 
 APP_TITLE   := ChargeCap
 APP_AUTHOR  := ChargeCap
-APP_VERSION := 1.1.1
+APP_VERSION := 1.1.2
 NO_ICON     := 1
 
 #---------------------------------------------------------------------------------

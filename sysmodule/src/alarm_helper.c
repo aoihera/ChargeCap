@@ -1,9 +1,11 @@
 /*
  * Alarm Helper for ChargeCap
  *
- * Coordinates hardware system wake alarms via:
- * 1. time:al + time:s (CreateWakeupAlarm with ISteadyClock nanosecond timepoint)
- * 2. rtc (IRtcManager hardware PMIC RTC alarms fallback)
+ * Coordinates system wake alarms via time:al + time:s (CreateWakeupAlarm
+ * with ISteadyClock nanosecond timepoint).
+ *
+ * Uses a persistent ISteadyClockAlarm session (Approach 2) with a
+ * Disable -> Enable cycle to eliminate IPC session allocation churn.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -12,24 +14,27 @@
 #include <switch.h>
 #include "alarm_helper.h"
 
-#define RTC_DEVICE_CODE 0x3B000001
-#define RTC_ALARM_ID    0
-
 /* Service handles */
 static Service g_timeSSrv       = {0};
 static Service g_steadyClockSrv = {0};
 static Service g_timeAlSrv      = {0};
 static Service g_alarmSubSrv    = {0};
-static Service g_rtcSrv         = {0};
 
 /* Service states */
 static bool g_steadyClockInit = false;
 static bool g_timeAlInit      = false;
-static bool g_rtcInit         = false;
 
 /* Scheduling tracking */
 static bool g_scheduled   = false;
 static u64  g_target_tick = 0;
+
+/* Set before every Enable call, cleared only by a Disable that is CONFIRMED
+ * successful (or by destroying the object). While it is false, no Enable has
+ * been issued since the last confirmed disarm, so a cancellation Disable is a
+ * guaranteed no-op - skipping it is what keeps the inert states (held at the
+ * limit, unplugged, disabled) at zero alarm-service traffic. A failed Disable
+ * keeps the flag set, so the next evaluation retries it. */
+static bool g_armed_possible = false;
 
 Result alarmHelperInit(void) {
     /* 1. Initialize time:s -> ISteadyClock for accurate steady-clock timepoints */
@@ -44,21 +49,15 @@ Result alarmHelperInit(void) {
         }
     }
 
-    /* 2. Initialize time:al (IAlarmService) */
+    /* 2. Initialize time:al (IAlarmService) & create persistent ISteadyClockAlarm session */
     if (!g_timeAlInit) {
         Handle handle = INVALID_HANDLE;
         if (R_SUCCEEDED(smGetServiceOriginal(&handle, smEncodeName("time:al")))) {
             serviceCreate(&g_timeAlSrv, handle);
             g_timeAlInit = true;
-        }
-    }
 
-    /* 3. Initialize rtc (IRtcManager fallback) */
-    if (!g_rtcInit) {
-        Handle handle = INVALID_HANDLE;
-        if (R_SUCCEEDED(smGetServiceOriginal(&handle, smEncodeName("rtc")))) {
-            serviceCreate(&g_rtcSrv, handle);
-            g_rtcInit = true;
+            /* Cmd 0: CreateWakeupAlarm -> create persistent session once */
+            (void)serviceDispatch(&g_timeAlSrv, 0, .out_num_objects = 1, .out_objects = &g_alarmSubSrv);
         }
     }
 
@@ -87,13 +86,6 @@ void alarmHelperExit(void) {
         memset(&g_timeAlSrv, 0, sizeof(Service));
         g_timeAlInit = false;
     }
-
-    if (g_rtcInit) {
-        if (serviceIsActive(&g_rtcSrv))
-            serviceClose(&g_rtcSrv);
-        memset(&g_rtcSrv, 0, sizeof(Service));
-        g_rtcInit = false;
-    }
 }
 
 Result alarmHelperSchedule(u32 delay_seconds) {
@@ -102,19 +94,15 @@ Result alarmHelperSchedule(u32 delay_seconds) {
 
     const u64 now_tick   = armGetSystemTick();
     const u64 delay_tick = armNsToTicks((u64)delay_seconds * 1000000000ULL);
-    g_target_tick        = now_tick + delay_tick;
-    g_scheduled          = true;
+    bool scheduled       = false;
 
-    /* 1. Schedule via time:al: Obtain fresh ISteadyClockAlarm via CreateWakeupAlarm (Cmd 0) */
     if (g_timeAlInit && serviceIsActive(&g_timeAlSrv)) {
-        if (serviceIsActive(&g_alarmSubSrv)) {
-            serviceDispatch(&g_alarmSubSrv, 2); /* Disable previous */
-            serviceClose(&g_alarmSubSrv);
-            memset(&g_alarmSubSrv, 0, sizeof(Service));
+        /* Ensure persistent alarm session is open */
+        if (!serviceIsActive(&g_alarmSubSrv)) {
+            (void)serviceDispatch(&g_timeAlSrv, 0, .out_num_objects = 1, .out_objects = &g_alarmSubSrv);
         }
 
-        /* Cmd 0: CreateWakeupAlarm -> returns fresh ISteadyClockAlarm */
-        if (R_SUCCEEDED(serviceDispatch(&g_timeAlSrv, 0, .out_num_objects = 1, .out_objects = &g_alarmSubSrv))) {
+        if (serviceIsActive(&g_alarmSubSrv)) {
             u64 steady_time_point = 0;
             if (g_steadyClockInit && serviceIsActive(&g_steadyClockSrv)) {
                 struct {
@@ -130,52 +118,56 @@ Result alarmHelperSchedule(u32 delay_seconds) {
                 steady_time_point = armTicksToNs(now_tick);
 
             const u64 target_ns = steady_time_point + ((u64)delay_seconds * 1000000000ULL);
-            serviceDispatchIn(&g_alarmSubSrv, 1, target_ns); /* Enable */
+
+            /*
+             * Approach 2: Persistent handle with Disable -> Enable cycle.
+             * 1. Call Disable (Cmd 2) to acknowledge/reset the alarm state.
+             * 2. Call Enable (Cmd 1) with the new target nanosecond timestamp.
+             */
+            serviceDispatch(&g_alarmSubSrv, 2); /* Cmd 2: Disable */
+
+            g_armed_possible = true; /* before the call: a lost reply must not hide
+                                      * a possibly-armed alarm from a later Disable */
+            Result rc = serviceDispatchIn(&g_alarmSubSrv, 1, target_ns); /* Cmd 1: Enable */
+            if (R_SUCCEEDED(rc)) {
+                scheduled = true;
+            } else {
+                /* Fail-safe recovery: re-acquire session if Enable failed */
+                serviceClose(&g_alarmSubSrv);
+                g_armed_possible  = false; /* old object destroyed; the new one is
+                                            * fresh (not enabled) */
+                memset(&g_alarmSubSrv, 0, sizeof(Service));
+
+                if (R_SUCCEEDED(serviceDispatch(&g_timeAlSrv, 0, .out_num_objects = 1, .out_objects = &g_alarmSubSrv))) {
+                    g_armed_possible = true;
+                    if (R_SUCCEEDED(serviceDispatchIn(&g_alarmSubSrv, 1, target_ns))) {
+                        scheduled = true;
+                    }
+                }
+            }
         }
     }
 
-    /* 2. Schedule via rtc (IRtcManager hardware PMIC RTC alarm fallback) */
-    if (g_rtcInit && serviceIsActive(&g_rtcSrv)) {
-        struct {
-            u32 device_code;
-            u32 rtc_alarm_id;
-        } dis_in = { RTC_DEVICE_CODE, RTC_ALARM_ID };
-        serviceDispatchIn(&g_rtcSrv, 11, dis_in);
-
-        u64 rtc_now = 0;
-        const u32 dev = RTC_DEVICE_CODE;
-        if (R_FAILED(serviceDispatchInOut(&g_rtcSrv, 0, dev, rtc_now))) {
-            timeGetCurrentTime(TimeType_UserSystemClock, &rtc_now);
-        }
-
-        if (rtc_now != 0) {
-            struct {
-                u32 device_code;
-                u32 rtc_alarm_id;
-                u64 alarm_time_seconds;
-            } in = { RTC_DEVICE_CODE, RTC_ALARM_ID, rtc_now + (u64)delay_seconds };
-
-            serviceDispatchIn(&g_rtcSrv, 10, in);
-        }
+    if (scheduled) {
+        g_target_tick = now_tick + delay_tick;
+        g_scheduled   = true;
+    } else {
+        g_target_tick = 0;
+        g_scheduled   = false;
     }
 
-    return 0;
+    return scheduled ? 0 : MAKERESULT(Module_Libnx, LibnxError_NotInitialized);
 }
 
 Result alarmHelperCancel(void) {
-    if (serviceIsActive(&g_alarmSubSrv)) {
-        serviceDispatch(&g_alarmSubSrv, 2);
-        serviceClose(&g_alarmSubSrv);
-        memset(&g_alarmSubSrv, 0, sizeof(Service));
-    }
-
-    if (g_rtcInit && serviceIsActive(&g_rtcSrv)) {
-        struct {
-            u32 device_code;
-            u32 rtc_alarm_id;
-        } in = { RTC_DEVICE_CODE, RTC_ALARM_ID };
-
-        serviceDispatchIn(&g_rtcSrv, 11, in);
+    /* Only talk to the alarm service if an Enable has been issued since the last
+     * confirmed Disable: with nothing armed, cmd 2 was a guaranteed no-op sent on
+     * every 5 s evaluation of the inert states (held at the limit, unplugged,
+     * disabled). Every case where a Disable could matter still sends it - and a
+     * failed Disable keeps the flag set, so it is retried on the next cancel. */
+    if (g_armed_possible && serviceIsActive(&g_alarmSubSrv)) {
+        if (R_SUCCEEDED(serviceDispatch(&g_alarmSubSrv, 2))) /* Cmd 2: Disable */
+            g_armed_possible = false;
     }
 
     g_scheduled   = false;

@@ -71,6 +71,10 @@ static ChargeCapStatus g_status;
 static bool g_hold_wanted    = false;
 static bool g_we_disabled    = false;
 static bool g_reconciled     = false;
+static bool g_check_owed     = true;   /* did the last completed evaluation leave
+                                        * something owed? (charging on below the
+                                        * limit, or a stop that did not take) */
+
 static u64  g_last_diag_tick = 0;
 
 /* Diagnostic-only readouts. The charge limit itself never consults either of
@@ -111,6 +115,18 @@ static void ApplyChargeLimit(void) {
     Result            rc_info = MAKERESULT(Module_Libnx, LibnxError_NotInitialized);
     Result            rc_pct  = MAKERESULT(Module_Libnx, LibnxError_NotInitialized);
 
+    /* Wake fence: arm a check BEFORE reading the gauge, but only when the
+     * last completed evaluation left something owed (charging on below the
+     * limit, or a stop that did not take). If this evaluation is then cut
+     * short below, the console still wakes in 10 s and retries instead of
+     * sleeping with nothing armed. In the settled states - held at the limit
+     * with charging off, unplugged, disabled - nothing is owed, the fence is
+     * skipped and an idle console does zero alarm traffic. The decision
+     * further down replaces the fence with the correct delay - or cancels
+     * it - in the same pass. */
+    if (g_cfg.enabled && g_cfg.sleep_limit_enabled && g_check_owed)
+        alarmHelperSchedule(10);
+
     /* Fast retry loop for wake transitions (PMIC fuel gauge stabilization) */
     for (int retry = 0; retry < 5; retry++) {
         rc_info = batteryInfoGetChargeInfo(&info);
@@ -150,6 +166,7 @@ static void ApplyChargeLimit(void) {
 
         g_status.charging   = charging ? 1 : 0;
         g_status.limit_held = 0;
+        g_check_owed        = false;
         return;
     }
 
@@ -181,18 +198,20 @@ static void ApplyChargeLimit(void) {
             if (percent >= coarse_target) {
                 /* Within 2% of limit (e.g. 58% or 59% for limit 60%): 10s recurring checks */
                 alarmHelperSchedule(10);
-                g_status.alarm_active       = 1;
-                g_status.next_alarm_seconds = 10;
             } else {
                 /* Far approach: wake up when reaching (limit - 2), budgeting 40 seconds per 1% */
                 const u32 diff_to_coarse = coarse_target - percent;
                 const u32 delay_seconds  = diff_to_coarse * 40;
                 alarmHelperSchedule(delay_seconds);
+            }
 
-                u32 remaining = delay_seconds;
-                alarmHelperIsScheduled(&remaining);
+            u32 remaining = 0;
+            if (alarmHelperIsScheduled(&remaining)) {
                 g_status.alarm_active       = 1;
                 g_status.next_alarm_seconds = (u16)remaining;
+            } else {
+                g_status.alarm_active       = 0;
+                g_status.next_alarm_seconds = 0;
             }
         } else {
             alarmHelperCancel();
@@ -224,6 +243,29 @@ static void ApplyChargeLimit(void) {
 
     g_reconciled = true;
 
+    /* If we wanted a hold but charging is still on (the stop failed), do not
+     * sleep unarmed: keep a check pending so the stop is retried. Report what
+     * actually happened - if even this arm failed, the status must not claim a
+     * retry that does not exist. Same readback pattern as the decision above. */
+    if (g_hold_wanted && charging && g_cfg.sleep_limit_enabled) {
+        alarmHelperSchedule(10);
+
+        u32 remaining = 0;
+        if (alarmHelperIsScheduled(&remaining)) {
+            g_status.alarm_active       = 1;
+            g_status.next_alarm_seconds = (u16)remaining;
+        } else {
+            g_status.alarm_active       = 0;
+            g_status.next_alarm_seconds = 0;
+        }
+    }
+
+    /* What the next evaluation owes: only states with charging still on need
+     * the wake chain kept alive. Held-at-limit with charging off, unplugged
+     * and disabled states owe nothing. */
+    g_check_owed = (g_cfg.enabled && g_cfg.sleep_limit_enabled && plugged &&
+                    (!g_hold_wanted || charging));
+
     g_status.charging   = charging ? 1 : 0;
     g_status.limit_held = (g_hold_wanted && !charging) ? 1 : 0;
 }
@@ -243,6 +285,7 @@ static Result RequestHandler(void *userdata, const IpcServerRequest *r, u8 *out_
             memcpy(&g_cfg, r->data.ptr, sizeof(ChargeCapConfig));
             configSanitize(&g_cfg);
             g_hold_wanted = false;
+            g_check_owed  = true;   /* config changed: evaluate fenced */
             ApplyChargeLimit();
             return 0;
 
